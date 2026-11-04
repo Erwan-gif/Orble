@@ -2,10 +2,10 @@
 
 Orble is a tutor that lives in the MacBook's notch. Ask it about anything on your screen, by voice or by typing. It answers out loud, puts a mark on the exact control you need, and draws the explanation when words are not enough. It never clicks for you: it shows you, and you do it.
 
-<!-- demo: the hero GIF and the video link go here -->
+<!-- demo: the video link goes here -->
 <p align="center">
-  <img src="media/scene-render.jpg" alt="Blender's Rendering workspace on a Mac. Orble's island hangs from the notch and says: You're rendering on the CPU at 3,000 samples. Switch the device to the GPU, then lower the samples. Numbered brackets mark the Device menu, labelled Pick GPU Compute, and the Render samples field, labelled Then lower it to 512." width="100%">
-  <br><sub>“My render takes forever. What should I change?”</sub>
+  <img src="media/ask.gif" alt="A question asked out loud in Blender's Rendering workspace. Orble's island grows out of the notch and listens while the words appear: My render takes forever. What should I change? It thinks, then says: You're rendering on the CPU at 3,000 samples, with caustics on. Three numbered marks land one after another: the Device menu, labelled Pick GPU Compute; the Render samples field, labelled Lower it to 512; and the two caustics checkboxes, labelled Turn both caustics off." width="100%">
+  <br><sub>Asked out loud in Blender: “My render takes forever. What should I change?”</sub>
 </p>
 
 It is a native macOS app written in Rust with Tauri 2. The source is private while it gets ready for release. This repository explains how Orble works and shows what it draws.
@@ -15,21 +15,21 @@ It is a native macOS app written in Rust with Tauri 2. The source is private whi
 **It points at the real control.** Ask where a setting is, and Orble puts brackets on the control itself, with a short label beside it. The model only decides *which* control you need. Where the app exposes its accessibility tree, the position comes from macOS, which knows each control's frame to the point.
 
 <p align="center">
-  <img src="media/scene-devmode.jpg" alt="Figma in Dev Mode. The island says: Dev Mode has already written the CSS for this frame. Copy it with the button beside Layout. Brackets mark the small copy button beside Layout, labelled Copy the layout CSS, with a magnified lens of the button below it." width="100%">
+  <img src="media/scene-devmode.jpg" alt="Figma in Dev Mode. The island says: Dev Mode has already written this frame's CSS. Copy it with the button beside Layout. Brackets mark the small copy button beside Layout, labelled Copy the layout CSS, with a magnified lens of the button below it." width="100%">
   <br><sub>“How do I copy the CSS for this?” A button too small to see gets a magnified lens beside it.</sub>
 </p>
 
-**It walks you through a task, in any app.** Give it a goal and it plans one step at a time from what is on screen now: it marks the next control, waits for your click, then looks again. There are no scripts written per app. If you go your own way, it re-plans from where you are.
+**It walks you through a task, in any app.** Give it a goal and it plans one step at a time from what is on screen now: it marks the next control, waits for your click, then looks again. There are no scripts written per app. If you go your own way, it re-plans from where you are. A step that moves something, a layer into a group or a piece to its square, gets a movement arrow instead of brackets.
 
 <p align="center">
-  <img src="media/scene-layers.jpg" alt="Figma's layers panel. The island says: Drag Follow onto Nav in the layers list, and it moves inside Nav. A ring circles the Follow layer and an arrow leads up to brackets on the Nav layer, labelled Drag Follow onto Nav." width="100%">
-  <br><sub>A step that moves something gets a movement arrow: a ring on what moves, brackets where it goes.</sub>
+  <img src="media/scene-tracking.jpg" alt="Blender's Motion Tracking workspace during a live guide. The island shows only its lip. Brackets mark the vertical Solve tab at the window's left edge, labelled Open the Solve tab." width="100%">
+  <br><sub>A live guide toward “solve the camera”. The step's words sit beside its control, and a click on it moves the guide on.</sub>
 </p>
 
-**It draws the explanation.** Equations, matrices, charts, geometry, graphs, code, tables, timelines and trees appear on a board that drops out of the notch. Each panel appears on the sentence that introduces it.
+**It draws the explanation.** Equations, matrices, charts, geometry, graphs, code, tables, timelines and trees appear on a board that drops out of the notch. Each panel appears on the sentence that introduces it, and equations are typeset.
 
 <p align="center">
-  <img src="media/scene-homework.jpg" alt="A finance homework question in Preview. The board hangs from the notch, titled Inventory days, with three numbered steps: a day's cost of goods sold, 560 divided by 365, is 1.534 million; inventory days, 90 divided by 1.534, is 58.7; the closest choice is b, 59 days. On the page, the cost of goods sold is underlined, the inventory figure of 90 is circled, and choice b is bracketed." width="100%">
+  <img src="media/explain.gif" alt="A finance homework question in Preview. Asked: How do I get the inventory days? The board drops out of the notch, titled Inventory days, with a typeset equation: inventory over cost of goods sold divided by 365 equals 90 over 560 divided by 365, about 58.7 days, captioned So the closest choice is b, 59 days. On the page, the cost of goods sold is underlined and the inventory figure of 90 is circled, then choice b is bracketed." width="100%">
   <br><sub>“How do I get the inventory days?” The board shows the working; the marks show where each number comes from.</sub>
 </p>
 
@@ -40,18 +40,18 @@ It is a native macOS app written in Rust with Tauri 2. The source is private whi
 **Privacy Mode.** One switch keeps everything on the Mac: speech recognition with whisper.cpp or Apple's on-device recognizer, chat and pointing through local models in Ollama, a local decision model, and the system voice or a local speech server. Capture also pauses by itself for password managers, finance apps, meeting apps and screen sharing.
 
 <details>
-<summary>Two more examples, in Blender</summary>
+<summary>Two more examples, in Figma and Blender</summary>
 <p align="center">
-  <img src="media/scene-subdiv.jpg" alt="Blender's modifier panel. The island says: The Subdivision modifier keeps a separate level for the render. Raise Render, and leave Viewport as it is. Brackets mark the Render level field, labelled Raise Render to 3." width="100%">
-  <br><sub>“Smoother in the final render, but keep the viewport fast?”</sub>
+  <img src="media/scene-export.jpg" alt="A Figma design file with three phone screens. The island says: Select the screen, then add an export at the bottom of the Design panel. Numbered brackets mark the Florian screen, labelled Select the Florian screen, and the Export row of the Design panel, labelled Add an export, then pick 3x, joined by a thin line." width="100%">
+  <br><sub>“How do I export this screen at 3x?” Steps are numbered, and a line joins them in order.</sub>
 </p>
 <p align="center">
-  <img src="media/scene-tracking.jpg" alt="Blender's Motion Tracking workspace. The island says: Your tracks are in. Open the Solve tab, then press Solve Camera Motion. Brackets mark the vertical Solve tab, labelled Open the Solve tab." width="100%">
-  <br><sub>“I've tracked my points. How do I solve the camera?”</sub>
+  <img src="media/scene-subdiv.jpg" alt="Blender's modifier panel. The board hangs from the notch, titled Subdivision levels, with the equation F n equals F 0 times 4 to the n, captioned: Each level splits every face into four, so Render at 3 has four times the faces of Viewport at 2. Brackets mark the Render level field, labelled Raise Render to 3." width="100%">
+  <br><sub>“Smoother in the final render, but keep the viewport fast?” A mark and the board in one answer.</sub>
 </p>
 </details>
 
-<sub>How these pictures were made: real screenshots of Blender, Figma and a homework sheet (each © its owner) on a mock desktop, with the island, the marks and the board drawn by Orble's own overlay and board code. The targets were placed by hand for the picture. In the app they come from the model, snapped to the accessibility tree where the app exposes one.</sub>
+<sub>How these pictures were made: real screenshots of Blender, Figma and a homework sheet (each © its owner), shown at one point per pixel on a mock desktop. The island, the marks and the board are drawn by Orble's own overlay and board code, and the animations are that code captured frame by frame. The targets were placed by hand for the picture. In the app they come from the model, snapped to the accessibility tree where the app exposes one.</sub>
 
 ## How pointing lands where it should
 
