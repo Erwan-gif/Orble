@@ -48,7 +48,7 @@ The long-lived workers (capture, microphone, playback, listener, decision prober
 ## The life of a question
 
 1. **Heard.** A streaming recognizer, or one on the Mac, produces a final transcript. If it arrives while Orble is speaking and mostly repeats what Orble said, it is the speakers' echo and is dropped.
-2. **Routed.** Speech heard in the moments after an answer, without the wake word, goes to the decision layer: a small model that answers closed questions in a few hundred milliseconds. Is this addressed to Orble? In a live guide, does it mean "next" or "go back"? Typed input is never dropped.
+2. **Routed.** Speech heard in the moments after an answer, without the wake word, goes to the decision layer: a small model, Jev by default, that answers closed questions in a few hundred milliseconds. Is this addressed to Orble? In a live guide, does it mean "next" or "go back"? Typed input is never dropped.
 3. **Framed.** The question gets exactly one screenshot, settled after the capture pause check, labelled with its pixel size and capped so the model provider never rescales it. A circled region, if there is one, is drawn into that frame first.
 4. **Assembled.** The system prompt has a stable core, which is cached, and a volatile part with the frontmost app, its knowledge pack, the learner's notes and the language. Switching apps changes only the volatile part, so the cache survives.
 5. **Answered.** The reply streams. Sentences go to the voice as they complete. Tool calls (pointing, drawing, explaining, looking closer, looking back in time, starting a guide) are parsed as their input streams, and a mark is placed while the rest of the answer is still being written.
@@ -64,11 +64,11 @@ Every event from the core to a page is defined once, in one table in Rust, with 
 | --- | --- | --- |
 | Chat | Claude Sonnet 5.5 by default; Claude Opus 5.5, Gemini | A model through Ollama |
 | Pointing | Claude grounds pixels; Gemini's text detection without a Claude key | A vision model through Ollama |
-| Decisions | A small hosted decision model | A compatible local one, or none: everything falls through to the full model |
+| Decisions | Jev, TypeSafe's hosted decision model | A model at a loopback address that speaks the same protocol, or none: everything falls through to the full model |
 | Speech to text | AssemblyAI streaming | whisper.cpp, Apple's on-device recognizer, a local speech app |
 | Voice | ElevenLabs | A local speech server, or macOS's own voices |
 
-A missing optional key is not an error. Orble falls back to the local path and says so once.
+A missing optional key is not an error. Orble falls back to the local path and says so once. Why each piece is where it is: [decisions.md](decisions.md).
 
 ## Privacy, in one rule
 

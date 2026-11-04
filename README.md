@@ -37,7 +37,7 @@ It is a native macOS app written in Rust with Tauri 2. The source is private whi
 
 **Scribe, for voice typing.** Hold <kbd>⌃</kbd><kbd>⇧</kbd><kbd>Space</kbd>, talk, let go. The text is shaped for where it lands: a list in Notes, a single line in a terminal. It never adds anything you did not say.
 
-**Privacy Mode.** One switch keeps everything on the Mac: speech recognition with whisper.cpp or Apple's on-device recognizer, a local model through Ollama, and the system voice. Capture also pauses by itself for password managers, finance apps, meeting apps and screen sharing.
+**Privacy Mode.** One switch keeps everything on the Mac: speech recognition with whisper.cpp or Apple's on-device recognizer, chat and pointing through local models in Ollama, a local decision model, and the system voice or a local speech server. Capture also pauses by itself for password managers, finance apps, meeting apps and screen sharing.
 
 <details>
 <summary>Two more examples, in Blender</summary>
@@ -123,7 +123,7 @@ flowchart TB
         R["Orchestrator: context, tools, turns"]
         X["Accessibility tree"]
         T["Voice"]
-        D["Decision layer"]
+        D["Decision layer: Jev, or a local model"]
     end
     subgraph Models["Models"]
         CL["Claude, the default"]
@@ -143,6 +143,16 @@ flowchart TB
 
 The full tour, including the threads and what each window may call, is in [docs/architecture.md](docs/architecture.md).
 
+## Why it's built this way
+
+- **A Rust core, with Tauri windows.** Capture, listening and playback run all day beside your real work, so they must be cheap and must not pause. Rust calls the accessibility API, CoreAudio and ScreenCaptureKit directly. The windows are webviews in the system's own WebKit, because brackets, labels, equations and charts are what HTML and SVG do well, and the same code runs in headless Chrome for the snapshot tests.
+- **It never clicks for you.** An autopilot existed and was removed. Orble's job is to teach you to do the thing.
+- **The model chooses; macOS measures.** The model's box only decides which control you mean. The accessibility tree supplies its real frame.
+- **A small model makes the small decisions.** Is that line said to Orble? Which of these listed controls is the next step? [Jev](https://typesafe.ai), a hosted decision model, answers in about half a second (481 ms at the median), picking only from options the code built. It races the full planner and can only remove a model call. A compatible local model can take its place, and it is the only kind used in Privacy Mode.
+- **Local-first is a mode, not a fork.** Privacy Mode is the same app with every model, ear and voice at a loopback address.
+
+Each decision, and what it costs, is in [docs/decisions.md](docs/decisions.md).
+
 ## Engineering
 
 | | |
@@ -152,7 +162,7 @@ The full tour, including the threads and what each window may call, is in [docs/
 | Snapshots | 170 checks over 70 board images rendered in headless Chrome; 18 prompt snapshot files, so any change to what a model is told fails a test until the diff is read and logged |
 | Security | A threat model covering 48 outbound data flows and 15 threat classes, with 65 residual risks each tracked as an issue. A CI check fails if it cites a function, test or file that no longer exists |
 | CI | Formatting, Clippy with warnings as errors, tests on Apple Silicon and on Intel under Rosetta, the minimum Rust version (1.88), cargo-deny for advisories and licences, the release bundle with and without Swift |
-| Decisions | 30 written decision records, from "Orble teaches; it never drives the Mac" to "Nothing waits on the main thread under a lock the main thread takes" |
+| Decisions | 30 written decision records, from "Orble teaches; it never drives the Mac" to "Nothing waits on the main thread under a lock the main thread takes". The main ones are summarised in [docs/decisions.md](docs/decisions.md) |
 | Languages | English and French, for the interface and for what Orble says |
 
 Some of the problems behind those numbers, in [docs/engineering.md](docs/engineering.md):
@@ -174,7 +184,7 @@ The project's instruction file keeps the hard-won rules, so the same mistake is 
 
 ## Status
 
-Pre-release. Orble runs from source on macOS 13 and later. There is no signed public build yet. It uses Claude Sonnet 5.5 by default, with Claude Opus 5.5, Gemini and local Ollama models also supported. AssemblyAI and ElevenLabs are optional for streaming speech and voices. Each service uses your own key, and Privacy Mode needs none.
+Pre-release. Orble runs from source on macOS 13 and later. There is no signed public build yet. It uses Claude Sonnet 5.5 by default, with Claude Opus 5.5, Gemini and local Ollama models also supported. AssemblyAI and ElevenLabs are optional for streaming speech and voices, and TypeSafe's Jev for the decision layer. Each service uses your own key, and Privacy Mode needs none.
 
 ## Licence
 
