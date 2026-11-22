@@ -53,12 +53,12 @@ pub fn snap(guess: (f64, f64, f64, f64), controls: &[Control]) -> Option<Control
 - *Hit-test a point; never walk the tree at answer time.* A full walk of an Electron app's accessibility tree is about 10,000 IPC round trips and 300 to 500 ms. Under any budget a hint can wait for, a walk returns the menu bar and none of the window's content.
 - *The tree is deeper than it looks, and mostly menus.* The walk's depth cap was 14. The deepest reachable control in one editor's sidebar was at depth 31, so controls plainly on screen came back "not found". Menus were 424 of that app's 517 nodes, so closed menus are no longer descended into, which made depth 40 affordable. That app went from 15 controls found to 54.
 - *A word in a description is not a control's name.* "The src folder in the file explorer" once snapped onto the File menu, 171 points away. Titles now match as whole words, and a name match counts only within 80 points of the guess. Real matches land within 12.
-- *Not every model can point through tool arguments.* Measured on synthetic screens with targets at known positions, Gemini's coordinates in function-call arguments were 100 to 200 pixels off, whatever the fields were named. It is accurate only in its trained output, plain-text JSON with `box_2d` normalised to 0 to 1000. So Gemini's pointing tools take a description of the target, and a separate call grounds it: Claude, in real pixels, when a Claude key exists, else Gemini's own text detection.
+- *Not every model can point through tool arguments.* Measured on synthetic screens with targets at known positions, Gemini's coordinates in function-call arguments were 100 to 200 pixels off, whatever the fields were named. It was accurate only in its trained output, plain-text JSON with `box_2d` normalised to 0 to 1000, so Gemini's pointing tools took a description of the target and a separate call grounded it. Gemini was removed on 14 November 2026, once people no longer chose a model: keeping it meant its own tool schemas, detection pass, grounder and stream parser. Claude grounds well in real pixels passed through tool arguments, so every pointing tool now takes pixel numbers in the frame Claude was shown. The lesson is now a written rule for any model added later: it will point in the format it was trained on, converted at the model's boundary, so that inside Orble every coordinate stays the shown frame's pixels.
 - *One screenshot per turn, at a size that is never rescaled.* Captures are capped so the provider never resizes them internally, and each is labelled with its exact width and height. A model's pixel then maps one to one to the screen. Coordinates are always resolved against the frame the model was shown, never the newest one in the ring: the ring keeps moving, for example following the pointer to another display. The mapping is pure and tested on 5K, XDR, scaled 4K, portrait, ultrawide and displays with negative origins.
 
 ## The board
 
-The board is for anything the user has to read: 13 panel kinds, from equations and matrices to graphs, trees, timelines and side-by-side comparisons. Panels carry content and structure only, never coordinates. The board does all the layout, which is why it is safe to give to a model that is weak at coordinates.
+The board is for anything the user has to read: 19 panel kinds the model can ask for, from equations, matrices and worked derivations to graphs, trees, timelines, side-by-side comparisons, plots of formulas, geometry constructions, chess positions, animated scenes and 3D models. Panels carry content and structure only, never coordinates. The board does all the layout, which is why it is safe to give to a model that is weak at coordinates.
 
 **Landing on the words.** Speech is synthesized ahead of playback, so a timer would drift. Each panel instead rides the audio queue itself:
 
@@ -115,7 +115,7 @@ A numbered procedure spoken over several sentences is revealed one step per sent
 
 Claude streams a tool call's input as JSON fragments. Orble reads them as raw bytes, never decoding a string before it closes, and hands out each piece the moment its object closes: the explanation's title, each panel, each shape of a drawing. That means:
 
-- the board opens on the title while the panels are still being written;
+- the board opens with its first panel, its title held until then so a board is never up empty, while the rest are still being written;
 - a mark is grounded and queued as its call closes, while the rest of the answer is still streaming;
 - one rule keeps the order the model intended: a call streams only while every client call before it in the response also streamed. Anything else waits for the tool loop and is shown whole in its place.
 
@@ -136,8 +136,9 @@ Edge cases are handled explicitly. A call left open by a `max_tokens` stop never
 The microphone hears the speakers. Through a MacBook's built-in speakers, Orble's own voice is the loudest thing the microphone picks up. So interrupting it takes more than sound:
 
 - a transcript that arrives during Orble's speech and mostly repeats it is the echo, and is dropped;
-- a partial transcript stops the voice only if it is not an echo, has three words, and the microphone was loud above the echo floor for 500 ms of the last second;
-- where the decision layer answers in time, it must also not judge the words as said to someone else, so a television across the room does not stop Orble.
+- a stop word at the end of what is heard ("stop", "wait") stops the voice at once, unless the voice itself said it in the last 30 seconds;
+- otherwise a partial transcript stops the voice only if it is not an echo, has three words, and the decision layer judges it said to Orble, with a higher bar unless the microphone was loud above the echo floor for 500 ms of the last second, so a television across the room does not stop Orble;
+- with no decision layer, the loudness and the words decide.
 
 "Hold on", said over the voice, stops it with no reply. "Keep going" resumes from the sentence it was cut in. The thresholds are replayed on recorded cases in tests. Each live decision also writes a log line, so the thresholds can be tuned from real measurements instead of guesses.
 
@@ -145,20 +146,21 @@ The microphone hears the speakers. Through a MacBook's built-in speakers, Orble'
 
 **Not paying for silence.** The streaming speech service bills for the time its socket is open, not for speech, so a socket left open bills every quiet hour. A small state machine opens the socket when speech starts, with a short pre-roll so no word is lost. It holds the socket through brief pauses, sends keepalives, and closes it after 60 seconds of quiet, or at once when a call starts. Optionally, the wake word is first heard on the Mac, and only then is the cloud session opened.
 
-**Not asking the big model what a small one can answer.** The decision layer sends closed questions to Jev, a hosted decision model: is this line for Orble, which of these listed controls is the next step. Measured over 41 calls, it answered in 481 ms at the median and 649 ms at the 95th percentile, with no answer off the list it was given. It can only ever remove a model turn. In a guide, it races the full planner on the same frame. A confident pick from the list lets Orble skip the planner's call. A low-confidence answer, a timeout, or an app with no accessibility tree leaves the step to the planner, which is already running, so the race adds no wait. A model on the Mac that speaks the same protocol can take Jev's place, and one did not pass for choosing steps: see [decisions.md](decisions.md#a-small-model-chooses-it-never-generates).
+**Not asking the big model what a small one can answer.** The decision layer sends closed questions to Jev, a hosted decision model: is this line for Orble, which of these listed controls is the next step, and how much thought this question needs (quick, standard or deep), which sets how hard Claude thinks about it. Measured over 41 calls, it answered in 481 ms at the median and 649 ms at the 95th percentile, with no answer off the list it was given. It can only ever remove a model turn. In a guide, it races the full planner on the same frame. A confident pick from the list lets Orble skip the planner's call. A low-confidence answer, a timeout, or an app with no accessibility tree leaves the step to the planner, which is already running, so the race adds no wait. A model on the Mac that speaks the same protocol can take Jev's place, and one did not pass for choosing steps: see [decisions.md](decisions.md#a-small-model-chooses-it-never-generates).
 
 **Measuring before trusting.** Image questions to the decision model were measured before any were used. Yes/no questions about the screen were right 16 times out of 16. Boxes were another story: 4 of 24 confident boxes missed small targets by 19 to 52 points. So it is never used to place a mark, only to judge whether a manual guide step is done.
 
-**Caching what does not change.** The system prompt is split into a stable core, which is cached, and a volatile part with the frontmost app and the learner's notes. Switching apps leaves the cache alone. A capture identical to one of the last two frames is reused without decoding or encoding it again.
+**Caching what does not change.** The prompt cache reads a request back only as far as it is byte for byte the one before. The volatile part (the frontmost app, the learner's notes) once sat in the system prompt, ahead of every message, so a new window title made the whole conversation be written to the cache again on every question: about 12,000 cache tokens an answer, 62 percent of a measured run's cost. Now the system prompt is a stable core, the same bytes for everyone on a plan; what changes each question rides at the end of the question's own message; and what changes rarely (an app's knowledge pack, the learner's notes) goes into the conversation once and stays where it was sent. A capture identical to one of the last two frames is reused without decoding or encoding it again.
 
 ## Privacy
 
 - **One rule for every capture pause.** The Mac is away, the user paused capture, another app shares the screen, or a password manager, finance app or meeting app is in front: all of these go through one tested function. A reason checked anywhere else would drift from the one the interface shows.
 - **Frames arriving don't prove permission.** Without Screen Recording permission, macOS does not fail the capture. It returns the wallpaper, and the model would happily describe "your desktop". Permission is asked of the operating system directly, never inferred from data arriving. The same goes for the microphone, which delivers silence when denied.
-- **Loopback means loopback.** The HTTP library's default sent `127.0.0.1` through the system proxy, which once carried Privacy Mode's local model traffic off the Mac. Every client is now built by one function that exempts loopback, and redirects are followed only when they stay on the same side of the Mac.
+- **Loopback means loopback.** The HTTP library's default sent `127.0.0.1` through the system proxy, which once carried traffic meant for a model on the Mac off it. Those were Privacy Mode's local models; Privacy Mode was removed on 14 November 2026, and a decision model on the Mac still talks over loopback. Every client is now built by one function that exempts loopback, and redirects are followed only when they stay on the same side of the Mac.
+- **Only Orble's service is trusted to be Orble's service.** In the downloaded app, the client that talks to Orble's service trusts only the certificate authorities behind the service's certificates, not every root on the Mac, so a proxy that intercepts TLS cannot read or change that traffic.
 - **Screen text is data.** Screenshots, text read through the accessibility tree, files and fetched pages are framed to the model as content, never instructions.
 - **The clipboard is read only on request.** The person asks, and then sees what was read before sending it.
-- **The claims are checked.** The threat model lists every outbound data flow, 48 in all, with its threats and residual risks. A CI step checks that every function, test and file it cites still exists. A promise the code does not keep is listed as a residual risk, not as a mitigation.
+- **The claims are checked.** The threat model lists every outbound data flow, 54 in all, with its threats and residual risks. A CI step checks that every function, test and file it cites still exists. A promise the code does not keep is listed as a residual risk, not as a mitigation.
 
 ## Testing
 
@@ -167,7 +169,7 @@ Orble's behaviour depends on the screen, the microphone and macOS, none of which
 Around that:
 
 - **Mock models.** A debug-only server on loopback replies with recorded response bytes, so the real parsers and the real orchestrator run unchanged in tests and demos.
-- **Prompt snapshots.** The system prompt and tool schemas for five configurations, and twelve background prompts, are kept as golden files. A change fails until the diff is accepted, and each accepted change gets an entry in a prompt changelog.
+- **Prompt snapshots.** The system prompt and tool schemas for four configurations, and fourteen background prompts, are kept as golden files. A change fails until the diff is accepted, and each accepted change gets an entry in a prompt changelog.
 - **Pixel snapshots.** Every board kind is drawn in headless Chrome over the DevTools protocol, with no dependency and no browser download. Its structure is checked everywhere and its pixels against goldens.
 - **Window boundaries.** One test checks that each window's grants match the commands its page calls. Another checks that the content security policy allows no inline script or style. A third pins every event's payload bytes.
 - **The pipeline test.** Synthetic screenshots with targets at known positions go through the real prompts and schemas, and the pointing error is measured in pixels.

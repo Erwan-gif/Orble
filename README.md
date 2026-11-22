@@ -6,7 +6,7 @@ Orble is a tutor that lives in the MacBook's notch. Ask it about anything on you
   <img src="media/buddy.svg" width="128" alt="Orble's buddy at rest: a small black bun with two soft ears, an ice-blue rim, ice-blue eyes with black pupils looking at you, and two small stubs for arms.">
   <br>
   <img src="media/buddy-going-home.svg" width="100%" alt="Eight frames of the buddy going home: he rises from the screen towards the notch, his top flattens along its edge and widens into a line, his body narrows into a U and his eyes slide up into two D shapes, until he is Orble's mark.">
-  <br><sub>Orble's buddy, a black bun with soft ears, lives under the notch: he listens while you talk, thinks while Orble thinks and goes to each mark it draws, and at home he becomes Orble's mark.</sub>
+  <br><sub>Meet Orble's buddy, coming with the pilot: a black bun with soft ears who lives under the notch. He listens while you talk, thinks while Orble thinks and goes to each mark Orble draws, and at home he becomes Orble's mark.</sub>
 </p>
 
 <!-- demo: the video link goes here -->
