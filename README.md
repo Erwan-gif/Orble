@@ -2,6 +2,13 @@
 
 Orble is a tutor that lives in the MacBook's notch. Ask it about anything on your screen, by voice or by typing. It answers out loud, puts a mark on the exact control you need, and draws the explanation when words are not enough. It never clicks for you: it shows you, and you do it.
 
+<p align="center">
+  <img src="media/buddy.svg" width="128" alt="Orble's buddy at rest: a small black bun with two soft ears, an ice-blue rim, ice-blue eyes with black pupils looking at you, and two small stubs for arms.">
+  <br>
+  <img src="media/buddy-going-home.svg" width="100%" alt="Eight frames of the buddy going home: he rises from the screen towards the notch, his top flattens along its edge and widens into a line, his body narrows into a U and his eyes slide up into two D shapes, until he is Orble's mark.">
+  <br><sub>Orble's buddy, a black bun with soft ears, lives under the notch: he listens while you talk, thinks while Orble thinks and goes to each mark it draws, and at home he becomes Orble's mark.</sub>
+</p>
+
 <!-- demo: the video link goes here -->
 <p align="center">
   <img src="media/ask.gif" alt="A question asked out loud in Blender's Rendering workspace. Orble's island grows out of the notch and listens while the words appear: My render takes forever. What should I change? It thinks, then says: You're rendering on the CPU at 3,000 samples, with caustics on. Three numbered marks land one after another: the Device menu, labelled Pick GPU Compute; the Render samples field, labelled Lower it to 512; and the two caustics checkboxes, labelled Turn both caustics off." width="100%">
@@ -33,11 +40,11 @@ It is a native macOS app written in Rust with Tauri 2. The source is private whi
   <br><sub>“How do I get the inventory days?” The board shows the working; the marks show where each number comes from.</sub>
 </p>
 
-**Circle to ask.** Hold <kbd>⌃</kbd><kbd>⌥</kbd> and move the pointer around anything. Your next question is about what you circled, and the model sees your circle.
+**Hold to talk, circle to ask.** Hold the right <kbd>⌘</kbd>, ask, let go: Orble hears you only while you hold it. Move the pointer around anything as you hold it, and your question is about what you circled; the model sees your circle.
 
 **Scribe, for voice typing.** Hold <kbd>⌃</kbd><kbd>⇧</kbd><kbd>Space</kbd>, talk, let go. The text is shaped for where it lands: a list in Notes, a single line in a terminal. It never adds anything you did not say.
 
-**Privacy Mode.** One switch keeps everything on the Mac: speech recognition with whisper.cpp or Apple's on-device recognizer, chat and pointing through local models in Ollama, a local decision model, and the system voice or a local speech server. Capture also pauses by itself for password managers, finance apps, meeting apps and screen sharing.
+**Capture pauses by itself.** Screen capture stops while a password manager, a finance app or a meeting app is in front, and while another app is sharing your screen, and the island says why. Screen frames stay in memory and never touch the disk.
 
 <details>
 <summary>Two more examples, in Figma and Blender</summary>
@@ -59,9 +66,9 @@ A model looking at a screenshot is accurate to about 1 to 2 percent of the frame
 
 ```mermaid
 flowchart TD
-    F["Your question, with one screenshot<br/>labelled with its exact size"] --> M{"Chat model"}
-    M -- "Claude: a box in pixels" --> G["The model's guess"]
-    M -- "Gemini: a description" --> L["A grounding call finds it"]
+    F["Your question, with one screenshot<br/>labelled with its exact size"] --> M{"Claude"}
+    M -- "a box in that frame's pixels" --> G["The model's guess"]
+    M -- "only a description,<br/>such as a guide step's target" --> L["A grounding call boxes it in pixels<br/>and checks it zoomed in"]
     L --> G
     G --> H["Hit-test the guess<br/>in the accessibility tree"]
     H -- "overlaps, plausible size" --> S["Draw the control's exact frame"]
@@ -71,7 +78,7 @@ flowchart TD
 Three rules make this work:
 
 1. **One screenshot per turn, sent at a size the API will not rescale.** The model's pixel coordinates then map one to one onto the screen. They are always resolved against the frame the model saw, never a newer one.
-2. **Each model points in the format it was trained on.** Measured on synthetic screens with targets at known positions, Gemini was 100 to 200 pixels off when it gave coordinates through tool arguments. It is accurate only in its own `box_2d` text format. So Gemini describes the target, and a separate call finds it.
+2. **The model points in the frame's own pixels.** A model points best in the format it was trained on, and Claude's is pixel numbers passed as tool arguments, so every pointing tool takes pixels in the frame Claude was shown. A target known only by its description, such as a guide step's, is boxed in pixels by a second call and checked zoomed in.
 3. **The operating system has the last word.** A hit is accepted only if it overlaps the guess and is at most 2.5 times its size. A miss keeps the model's box, so this step can only improve a mark.
 
 More in [docs/engineering.md](docs/engineering.md#pointing).
@@ -123,19 +130,29 @@ flowchart TB
         R["Orchestrator: context, tools, turns"]
         X["Accessibility tree"]
         T["Voice"]
-        D["Decision layer: Jev, or a local model"]
+        D["Decision layer"]
     end
-    subgraph Models["Models"]
-        CL["Claude, the default"]
-        GE["Gemini"]
-        OL["Ollama on the Mac"]
+    subgraph Mac["On the Mac"]
+        LS["Apple's recognizer or whisper.cpp"]
+        MV["The macOS voice"]
+        LD["A compatible decision model"]
+    end
+    subgraph Service["Through Orble's service"]
+        CL["Claude: answers, pointing, planning"]
+        AS["AssemblyAI: streaming speech"]
+        JV["Jev: decisions"]
     end
     C --> R
     A --> R
     D --> R
-    R <--> Models
+    R <--> CL
+    A <--> AS
+    A <--> LS
+    D <--> JV
+    D <--> LD
     R --> X
     R --> T
+    T --> MV
     R -- "events" --> I
     R -- "events" --> O
     P -- "commands" --> R
@@ -148,8 +165,8 @@ The full tour, including the threads and what each window may call, is in [docs/
 - **A Rust core, with Tauri windows.** Capture, listening and playback run all day beside your real work, so they must be cheap and must not pause. Rust calls the accessibility API, CoreAudio and ScreenCaptureKit directly. The windows are webviews in the system's own WebKit, because brackets, labels, equations and charts are what HTML and SVG do well, and the same code runs in headless Chrome for the snapshot tests.
 - **It never clicks for you.** An autopilot existed and was removed. Orble's job is to teach you to do the thing.
 - **The model chooses; macOS measures.** The model's box only decides which control you mean. The accessibility tree supplies its real frame.
-- **A small model makes the small decisions.** Is that line said to Orble? Which of these listed controls is the next step? [Jev](https://typesafe.ai), a hosted decision model, answers in about half a second (481 ms at the median), picking only from options the code built. It races the full planner and can only remove a model call. A compatible local model can take its place, and it is the only kind used in Privacy Mode.
-- **Local-first is a mode, not a fork.** Privacy Mode is the same app with every model, ear and voice at a loopback address.
+- **A small model makes the small decisions.** Is that line said to Orble? Which of these listed controls is the next step? How hard does this question need thinking about? [Jev](https://typesafe.ai), a hosted decision model, answers in under half a second (481 ms at the median, measured in October), picking only from options the code built. On a guide step it races the full planner, so it can only remove a model call. A compatible model running on the Mac can take its place.
+- **No keys, and no model to pick.** People should not have to choose a model or bring their own keys, so the Orble you download reads none. A grown-up connects the Mac to an Orble account once, and Orble's own service carries every model, speech, voice and decision call.
 
 Each decision, and what it costs, is in [docs/decisions.md](docs/decisions.md).
 
@@ -157,13 +174,13 @@ Each decision, and what it costs, is in [docs/decisions.md](docs/decisions.md).
 
 | | |
 | --- | --- |
-| Code | 124 Rust modules, about 129,000 lines including their tests; 50 UI scripts, no build step |
-| Tests | 2,288 Rust tests, 467 UI tests in Node, 346 Python tests for the tooling |
-| Snapshots | 170 checks over 70 board images rendered in headless Chrome; 18 prompt snapshot files, so any change to what a model is told fails a test until the diff is read and logged |
-| Security | A threat model covering 48 outbound data flows and 15 threat classes, with 65 residual risks each tracked as an issue. A CI check fails if it cites a function, test or file that no longer exists |
-| CI | Formatting, Clippy with warnings as errors, tests on Apple Silicon and on Intel under Rosetta, the minimum Rust version (1.88), cargo-deny for advisories and licences, the release bundle with and without Swift |
-| Decisions | 30 written decision records, from "Orble teaches; it never drives the Mac" to "Nothing waits on the main thread under a lock the main thread takes". The main ones are summarised in [docs/decisions.md](docs/decisions.md) |
-| Languages | English and French, for the interface and for what Orble says |
+| Code | 180 Rust modules, about 220,000 lines including their tests; about 100 UI scripts, no build step |
+| Tests | About 3,700 Rust tests, 1,900 UI tests in Node and 800 Python tests for the tooling |
+| Snapshots | 227 board images drawn in headless Chrome and checked against their pixels, and the 3D models drawn live in software WebGL; 18 prompt snapshot files, so any change to what a model is told fails a test until the diff is read and logged |
+| Security | A threat model covering 54 outbound data flows and 16 threat classes, with 139 numbered residual risks. A CI check fails if it cites a function, test or file that no longer exists |
+| CI | Formatting, Clippy with warnings as errors, tests on Apple Silicon and on Intel under Rosetta, the minimum Rust version (1.88), cargo-deny for advisories and licences, the release bundle with and without Swift, and a copy signed with a throwaway identity |
+| Decisions | 33 written decision records, from "Orble teaches; it never drives the Mac" to "Nothing waits on the main thread under a lock the main thread takes". The main ones are summarised in [docs/decisions.md](docs/decisions.md) |
+| Languages | Nine for the interface and for what Orble says: English, French, German, Spanish, Italian, Brazilian Portuguese, Japanese, Simplified Chinese and Korean. It also answers in Dutch and Russian |
 
 Some of the problems behind those numbers, in [docs/engineering.md](docs/engineering.md):
 
@@ -178,13 +195,20 @@ Some of the problems behind those numbers, in [docs/engineering.md](docs/enginee
 
 ## How it was built
 
-Orble has 1,091 commits made between 14 August and 4 November 2026. I designed it and directed the work. Most of the code was written by AI coding agents (Claude Code), several at a time, each in its own git worktree. My part was the product, the specifications, the order of work, the rules the code must keep, and deciding what ships. Every batch is read by independent review agents and must pass the full test suite before I merge it.
+Orble has 2,258 commits made between 14 August and 23 November 2026. I designed it and directed the work. Most of the code was written by AI coding agents (Claude Code), several at a time, each in its own git worktree. My part was the product, the specifications, the order of work, the rules the code must keep, and deciding what ships. Every batch is read by independent review agents and must pass the full test suite before I merge it.
 
 The project's instruction file keeps the hard-won rules, so the same mistake is not made twice. Two examples: "A transparent window still swallows clicks", and "Frames arriving don't prove Screen Recording".
 
 ## Status
 
-Pre-release. Orble runs from source on macOS 13 and later. There is no signed public build yet. It uses Claude Sonnet 5.5 by default, with Claude Opus 5.5, Gemini and local Ollama models also supported. AssemblyAI and ElevenLabs are optional for streaming speech and voices, and TypeSafe's Jev for the decision layer. Each service uses your own key, and Privacy Mode needs none.
+Pre-release: a free pilot opens around 1 December 2026. Orble runs on macOS 13 and later, on Apple silicon and Intel. Releases are signed with Orble's own identity but not notarised by Apple, so the first time you open Orble, macOS asks you to choose Open Anyway; updates then arrive by themselves and keep its permissions.
+
+There is no key to bring and no model to pick. A grown-up connects each Mac to its Orble account by approving a short code, or scanning its QR code, on their phone. From then on every model, speech, voice and decision call goes through Orble's own service.
+
+- **Answers:** Claude Opus 5.5, in fast mode. The decision layer judges how much thought each question needs (quick, standard or deep) and sets Claude's effort to match. Claude Haiku 5.5 does background work, such as shaping Scribe's text and planning guide steps, and never answers a question.
+- **Listening:** AssemblyAI's streaming recognizer, through the service. Apple's on-device recognizer, or whisper.cpp where it is installed, listens on the Mac instead when the person's language needs it or the service is unavailable.
+- **Voice:** the Mac's own voice. The service can also carry an ElevenLabs voice, for a plan that includes one.
+- **Decisions:** TypeSafe's Jev, through the service, or a compatible model running on the Mac.
 
 ## Licence
 
